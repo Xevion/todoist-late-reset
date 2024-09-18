@@ -22,6 +22,7 @@ var (
 	todoistApiToken string
 	redisURL        string
 	cronSchedule    string
+	tzLocation      *time.Location
 	client          = &http.Client{}
 )
 
@@ -30,6 +31,13 @@ func init() {
 	err := godotenv.Load()
 	if err != nil {
 		fmt.Println(".env file not loaded")
+	}
+
+	// Load timezone
+	tzLocation, err = time.LoadLocation("America/Chicago")
+	if err != nil {
+		fmt.Println("Error loading location:", err)
+		os.Exit(1)
 	}
 }
 
@@ -40,19 +48,13 @@ func primary() error {
 		return err
 	}
 
-	loc, err := time.LoadLocation("America/Chicago")
-	if err != nil {
-		fmt.Println("Error loading location:", err)
-		return err
-	}
-
-	now := time.Now().In(loc)
-	startTime := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc)
+	now := time.Now().In(tzLocation)
+	startTime := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, tzLocation)
 	endTime := startTime.Add(3 * time.Hour)
 
 	for _, event := range log.Events {
 		if event.EventDate.After(startTime) && event.EventDate.Before(endTime) {
-			fmt.Printf("%s - %s\n", event.EventDate.In(loc).Format("Monday, January 2, 3:04 PM MST"), event.ExtraData["content"])
+			fmt.Printf("%s - %s\n", event.EventDate.In(tzLocation).Format("Monday, January 2, 3:04 PM MST"), event.ExtraData["content"])
 		}
 	}
 
@@ -68,7 +70,7 @@ func main() {
 	// client := redis.NewClient(opt)
 
 	// create a scheduler
-	s, err := gocron.NewScheduler()
+	s, err := gocron.NewScheduler(gocron.WithLocation(tzLocation))
 	if err != nil {
 		fmt.Println("Error creating scheduler:", err)
 		os.Exit(1)
