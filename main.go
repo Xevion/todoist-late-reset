@@ -39,13 +39,19 @@ func primary() error {
 		return err
 	}
 
-	now := time.Now()
-	startTime := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	loc, err := time.LoadLocation("America/Chicago")
+	if err != nil {
+		fmt.Println("Error loading location:", err)
+		return err
+	}
+
+	now := time.Now().In(loc)
+	startTime := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc)
 	endTime := startTime.Add(3 * time.Hour)
 
 	for _, event := range log.Events {
 		if event.EventDate.After(startTime) && event.EventDate.Before(endTime) {
-			fmt.Printf("%s - %s\n", event.EventDate.Format("Monday, January 2, 3:04 PM"), event.ExtraData["content"])
+			fmt.Printf("%s - %s\n", event.EventDate.In(loc).Format("Monday, January 2, 3:04 PM MST"), event.ExtraData["content"])
 		}
 	}
 
