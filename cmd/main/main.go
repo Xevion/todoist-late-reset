@@ -7,7 +7,7 @@ package main
 
 import (
 	"fmt"
-	"net/http"
+	"internal/api"
 	"os"
 	"os/signal"
 	"syscall"
@@ -19,11 +19,10 @@ import (
 )
 
 var (
-	todoistApiToken string
-	redisURL        string
-	cronSchedule    string
-	tzLocation      *time.Location
-	client          = &http.Client{}
+	client       *api.SyncClient
+	redisURL     string
+	cronSchedule string
+	tzLocation   *time.Location
 )
 
 func init() {
@@ -41,30 +40,30 @@ func init() {
 	}
 }
 
+// primary is the main function that will be run by the scheduler
 func primary() error {
-	log, err := getRecentlyCompleted()
+	// Get recently completed tasks
+
+	log, err := client.RecentlyCompleted()
 	if err != nil {
-		fmt.Println("Error getting recently completed tasks:", err)
+		fmt.Println("Error fetching recently completed tasks:", err)
 		return err
 	}
 
-	now := time.Now().In(tzLocation)
-	startTime := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, tzLocation)
-	endTime := startTime.Add(3 * time.Hour)
-
 	for _, event := range log.Events {
-		if event.EventDate.After(startTime) && event.EventDate.Before(endTime) {
-			fmt.Printf("%s - %s\n", event.EventDate.In(tzLocation).Format("Monday, January 2, 3:04 PM MST"), event.ExtraData["content"])
-		}
+		// if event.EventDate.In(tzLocation).Hour() >= 1 && event.EventDate.In(tzLocation).Hour() < 3 {
+		fmt.Printf("Task completed: %s at %s\n", event.ExtraData["content"], event.EventDate.In(tzLocation).Format("Monday, January 2, 3:04 PM MST"))
+		// }
 	}
 
 	return nil
 }
 
 func main() {
-	todoistApiToken = os.Getenv("TODOIST_API_KEY")
 	redisURL = os.Getenv("REDIS_URL")
 	cronSchedule = os.Getenv("CRON_SCHEDULE")
+
+	client = api.NewSyncClient(os.Getenv("TODOIST_API_KEY"))
 
 	// opt, _ := redis.ParseURL(redisURL)
 	// client := redis.NewClient(opt)
@@ -97,7 +96,7 @@ func main() {
 	durationUntilNextRun := time.Until(nextRun).Seconds()
 	fmt.Printf("startup: next run in %.2f seconds: %v\n", durationUntilNextRun, nextRun.Format(time.RFC3339))
 
-	if durationUntilNextRun > 1 {
+	if durationUntilNextRun > 60 {
 		// Run the job immediately
 		err = j.RunNow()
 		fmt.Println("startup: running job immediately")
@@ -118,6 +117,7 @@ func main() {
 	fmt.Println("Gracefully shutting down, received signal:", closingSignal.String())
 	err = s.Shutdown()
 	if err != nil {
-		// handle error
+		fmt.Println("Error shutting down scheduler:", err)
+		os.Exit(1)
 	}
 }

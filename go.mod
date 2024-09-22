@@ -13,3 +13,7 @@ require (
 	github.com/robfig/cron/v3 v3.0.1 // indirect
 	golang.org/x/exp v0.0.0-20240613232115-7f521ea00fb8 // indirect
 )
+
+
+require internal/api v1.0.0
+replace internal/api => ./internal/api
