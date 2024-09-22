@@ -1,0 +1,9 @@
+{
+  "$schema": "https://railway.app/railway.schema.json",
+  "build": {
+    "buildCommand": "go build -o out ./cmd/main"
+  },
+  "deploy": {
+    "restartPolicyMaxRetries": 3
+  }
+}
