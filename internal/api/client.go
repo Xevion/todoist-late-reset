@@ -33,23 +33,26 @@ func init() {
 // It holds the HTTP client, synchronization tokens, timestamps of the last syncs,
 // and the types of resources to be synchronized.
 type SyncClient struct {
-	Http      *http.Client
-	syncToken string
-	ApiToken  string
-	// LastSync is the timestamp of the last synchronization, full or incremental.
-	LastSync time.Time
-	// LastFullSync is the timestamp of the last full synchronization.
-	LastFullSync time.Time
-	// RequireFullSync indicates that client state has changed that a full sync is warranted.
-	RequireFullSync bool
-	ResourceTypes   map[ResourceType]bool
+	// lastSync is the timestamp of the last synchronization, full or incremental.
+	lastSync time.Time
+	// lastFullSync is the timestamp of the last full synchronization.
+	lastFullSync time.Time
+	// requireFullSync indicates that client state has changed that a full sync is warranted.
+	requireFullSync bool
+	resourceTypes   map[ResourceType]bool
+	http            *http.Client
+	syncToken       string
+	apiToken        string
+	State           *State
 }
 
 func NewSyncClient(apiToken string) *SyncClient {
 	return &SyncClient{
-		Http:      &http.Client{},
-		ApiToken:  apiToken,
-		syncToken: "*",
+		http:          &http.Client{},
+		apiToken:      apiToken,
+		syncToken:     "*",
+		resourceTypes: map[ResourceType]bool{},
+		State:         NewState(),
 	}
 }
 
@@ -62,18 +65,18 @@ func (sc *SyncClient) UseResources(resourceTypes ...ResourceType) {
 			continue
 		}
 
-		if sc.ResourceTypes[resourceType] == false {
-			sc.ResourceTypes[resourceType] = true
+		if sc.resourceTypes[resourceType] == false {
+			sc.resourceTypes[resourceType] = true
 
 			// Incremental sync may not contain all necessary data, so require a full sync.
-			sc.RequireFullSync = true
+			sc.requireFullSync = true
 		}
 	}
 }
 
 // headers applies common headers to the given request.
 func (sc *SyncClient) headers(req *http.Request) {
-	req.Header.Set("Authorization", "Bearer "+sc.ApiToken)
+	req.Header.Set("Authorization", "Bearer "+sc.apiToken)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("User-Agent", userAgent)
@@ -86,14 +89,20 @@ func (sc *SyncClient) get(path string, params url.Values) (*http.Response, error
 		path = "/" + path
 	}
 
-	req, err := http.NewRequest("GET", API_BASE_URL+path+"?"+params.Encode(), nil)
+	url := API_BASE_URL + path
+	if encodedParams := params.Encode(); len(encodedParams) > 0 {
+		url += "?" + encodedParams
+	}
+
+	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, err
 	}
 
 	sc.headers(req)
 
-	return sc.Http.Do(req)
+	fmt.Printf("DEBUG : Sending GET request to %s\n", req.URL.String())
+	return sc.http.Do(req)
 }
 
 // post performs a POST request to the Todoist API, building a request with the given path and parameters.
@@ -103,12 +112,23 @@ func (sc *SyncClient) post(path string, params url.Values, body []byte) (*http.R
 		path = "/" + path
 	}
 
-	req, err := http.NewRequest("POST", API_BASE_URL+path+"?"+params.Encode(), strings.NewReader(string(body)))
+	url := API_BASE_URL + path
+	if encodedParams := params.Encode(); len(encodedParams) > 0 {
+		url += "?" + encodedParams
+	}
+
+	req, err := http.NewRequest("POST", url, strings.NewReader(string(body)))
 	if err != nil {
 		return nil, err
 	}
 
 	sc.headers(req)
 
-	return sc.Http.Do(req)
+	fmt.Printf("DEBUG : Sending POST request to %s with body: %s\n", req.URL.String(), string(body))
+
+	res, err := sc.http.Do(req)
+
+	fmt.Printf("DEBUG : Received response with status code %d\n", res.StatusCode)
+
+	return res, err
 }
