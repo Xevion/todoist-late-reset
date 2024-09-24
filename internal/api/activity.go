@@ -3,7 +3,6 @@ package api
 import (
 	"encoding/json"
 	"io"
-	"net/http"
 	"net/url"
 	"time"
 )
@@ -27,17 +26,12 @@ type Event struct {
 
 func (sc *SyncClient) RecentlyCompleted() (*ActivityLog, error) {
 	params := url.Values{"event_type": {"completed"}}
-	req, err := http.NewRequest("GET", API_BASE_URL+"/activity/get?"+params.Encode(), nil)
+
+	resp, err := sc.get("activity/get", params)
 	if err != nil {
 		return nil, err
 	}
 
-	req.Header.Set("Authorization", "Bearer "+sc.ApiToken)
-
-	resp, err := sc.Http.Do(req)
-	if err != nil {
-		return nil, err
-	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)

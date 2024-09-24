@@ -29,10 +29,10 @@ func main() {
 	// }
 
 	client = api.NewSyncClient(os.Getenv("TODOIST_API_KEY"))
-	client.sync(true)
+	client.Synchronize(true)
 
 	for {
-		_, changes, err := client.sync(false)
+		changes, err := client.Synchronize(false)
 
 		if err != nil {
 			fmt.Println("Error syncing:", err)

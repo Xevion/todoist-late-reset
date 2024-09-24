@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"runtime"
 	"runtime/debug"
+	"strings"
 	"time"
 )
 
@@ -33,7 +34,7 @@ func init() {
 // and the types of resources to be synchronized.
 type SyncClient struct {
 	Http      *http.Client
-	SyncToken string
+	syncToken string
 	ApiToken  string
 	// LastSync is the timestamp of the last synchronization, full or incremental.
 	LastSync time.Time
@@ -48,7 +49,7 @@ func NewSyncClient(apiToken string) *SyncClient {
 	return &SyncClient{
 		Http:      &http.Client{},
 		ApiToken:  apiToken,
-		SyncToken: "*",
+		syncToken: "*",
 	}
 }
 
@@ -70,18 +71,44 @@ func (sc *SyncClient) UseResources(resourceTypes ...ResourceType) {
 	}
 }
 
+// headers applies common headers to the given request.
+func (sc *SyncClient) headers(req *http.Request) {
+	req.Header.Set("Authorization", "Bearer "+sc.ApiToken)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("User-Agent", userAgent)
+}
+
 // get performs a GET request to the Todoist API, building a request with the given path and parameters.
 // It will also apply Authorization, Content-Type, Accept, and User-Agent headers.
 func (sc *SyncClient) get(path string, params url.Values) (*http.Response, error) {
+	if !strings.HasPrefix(path, "/") {
+		path = "/" + path
+	}
+
 	req, err := http.NewRequest("GET", API_BASE_URL+path+"?"+params.Encode(), nil)
 	if err != nil {
 		return nil, err
 	}
 
-	req.Header.Set("Authorization", "Bearer "+sc.ApiToken)
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Accept", "application/json")
-	req.Header.Set("User-Agent", userAgent)
+	sc.headers(req)
+
+	return sc.Http.Do(req)
+}
+
+// post performs a POST request to the Todoist API, building a request with the given path and parameters.
+// It will also apply Authorization, Content-Type, Accept, and User-Agent headers.
+func (sc *SyncClient) post(path string, params url.Values, body []byte) (*http.Response, error) {
+	if !strings.HasPrefix(path, "/") {
+		path = "/" + path
+	}
+
+	req, err := http.NewRequest("POST", API_BASE_URL+path+"?"+params.Encode(), strings.NewReader(string(body)))
+	if err != nil {
+		return nil, err
+	}
+
+	sc.headers(req)
 
 	return sc.Http.Do(req)
 }
