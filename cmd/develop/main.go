@@ -1,9 +1,10 @@
-package develop
+package main
 
 import (
 	"fmt"
 	"internal/api"
 	"os"
+	"time"
 
 	"github.com/joho/godotenv"
 )
@@ -29,14 +30,21 @@ func main() {
 	// }
 
 	client = api.NewSyncClient(os.Getenv("TODOIST_API_KEY"))
-	client.Synchronize(true)
+	client.UseResources(api.Items)
 
 	for {
-		changes, err := client.Synchronize(false)
+		_, err := client.Synchronize(false)
+
+		fmt.Printf("Items: %d\n", len(client.State.Items))
+		for _, item := range client.State.Items {
+			fmt.Println(item)
+		}
 
 		if err != nil {
 			fmt.Println("Error syncing:", err)
 			os.Exit(1)
 		}
+
+		time.Sleep(30 * time.Second)
 	}
 }
