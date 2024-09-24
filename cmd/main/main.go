@@ -19,10 +19,8 @@ import (
 )
 
 var (
-	client       *api.SyncClient
-	redisURL     string
-	cronSchedule string
-	tzLocation   *time.Location
+	client     *api.SyncClient
+	tzLocation *time.Location
 )
 
 func init() {
@@ -30,13 +28,6 @@ func init() {
 	err := godotenv.Load()
 	if err != nil {
 		fmt.Println(".env file not loaded")
-	}
-
-	// Load timezone
-	tzLocation, err = time.LoadLocation("America/Chicago")
-	if err != nil {
-		fmt.Println("Error loading location:", err)
-		os.Exit(1)
 	}
 }
 
@@ -60,13 +51,19 @@ func primary() error {
 }
 
 func main() {
-	redisURL = os.Getenv("REDIS_URL")
-	cronSchedule = os.Getenv("CRON_SCHEDULE")
-
-	client = api.NewSyncClient(os.Getenv("TODOIST_API_KEY"))
-
+	// redisURL := os.Getenv("REDIS_URL")
+	cronSchedule := os.Getenv("CRON_SCHEDULE")
 	// opt, _ := redis.ParseURL(redisURL)
 	// client := redis.NewClient(opt)
+
+	// Load timezone
+	tzLocation, err := time.LoadLocation("America/Chicago")
+	if err != nil {
+		fmt.Println("Error loading location:", err)
+		os.Exit(1)
+	}
+
+	client = api.NewSyncClient(os.Getenv("TODOIST_API_KEY"))
 
 	// create a scheduler
 	s, err := gocron.NewScheduler(gocron.WithLocation(tzLocation))
