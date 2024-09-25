@@ -93,16 +93,6 @@ func main() {
 	durationUntilNextRun := time.Until(nextRun).Seconds()
 	fmt.Printf("startup: next run in %.2f seconds: %v\n", durationUntilNextRun, nextRun.Format(time.RFC3339))
 
-	if durationUntilNextRun > 60 {
-		// Run the job immediately
-		err = j.RunNow()
-		fmt.Println("startup: running job immediately")
-		if err != nil {
-			fmt.Println("Error running job immediately:", err)
-			os.Exit(1)
-		}
-	}
-
 	// Setup signal handler channel
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt)    // Ctrl+C signal
